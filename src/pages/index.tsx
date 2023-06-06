@@ -6,6 +6,7 @@ let socket;
 type Message = {
   author: string;
   message: string;
+  recipient: string;
 };
 
 export default function Home() {
@@ -13,6 +14,9 @@ export default function Home() {
   const [chosenUsername, setChosenUsername] = useState("");
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Array<Message>>([]);
+  const [userList, setUserList] = useState([]);
+  const [userSelected, setUserSelected] = useState("");
+  const [newUser, setNewUser] = useState("");
 
   useEffect(() => {
     socketInitializer();
@@ -26,17 +30,21 @@ export default function Home() {
     socket.on("newIncomingMessage", (msg) => {
       setMessages((currentMsg) => [
         ...currentMsg,
-        { author: msg.author, message: msg.message },
+        { author: msg.author, message: msg.message, recipient: msg.recipient },
       ]);
       console.log(messages);
     });
   };
 
   const sendMessage = async () => {
-    socket.emit("createdMessage", { author: chosenUsername, message });
+    socket.emit("createdMessage", {
+      author: username,
+      message,
+      recipient: userSelected,
+    });
     setMessages((currentMsg) => [
       ...currentMsg,
-      { author: chosenUsername, message },
+      { author: username, message, recipient: userSelected },
     ]);
     setMessage("");
 
@@ -52,9 +60,30 @@ export default function Home() {
     }
   };
 
+  const handleNewUser = (e) => {
+    // cuando se presiona ENTER
+    if (e.keyCode === 13) {
+      if (
+        !userList.find(
+          (user) => user.username.toLowerCase() === newUser.toLowerCase()
+        )
+      ) {
+        setUserList((currentList) => [
+          ...currentList,
+          { username: newUser, notification: 0 },
+        ]);
+
+        setNewUser("");
+      } else {
+        alert("El usuario ya existe");
+      }
+    }
+  };
+
   useEffect(() => {
     const storedUsername = localStorage.getItem("username");
     const storedMessages = localStorage.getItem("messages");
+    const storedUserList = localStorage.getItem("userList");
 
     if (storedUsername) {
       setChosenUsername(storedUsername);
@@ -63,6 +92,10 @@ export default function Home() {
 
     if (storedMessages) {
       setMessages(JSON.parse(storedMessages));
+    }
+
+    if (userList) {
+      setUserList(JSON.parse(storedUserList));
     }
   }, []);
 
@@ -73,6 +106,10 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("messages", JSON.stringify(messages));
   }, [messages]);
+
+  useEffect(() => {
+    localStorage.setItem("userList", JSON.stringify(userList));
+  }, [userList]);
 
   return (
     <div className="flex items-center p-4 mx-auto min-h-screen justify-center bg-cyan-500">
@@ -100,40 +137,98 @@ export default function Home() {
           </>
         ) : (
           <>
-            <p className="font-bold text-white text-xl">
-              Tu nombre de usuario: {username}
-            </p>
-            <div className="flex flex-col justify-end bg-white h-[20rem] min-w-[33%] rounded-md shadow-md ">
-              <div className="h-full last:border-b-0 overflow-y-scroll">
-                {messages.map((msg, i) => {
-                  return (
-                    <div
-                      className="w-full py-1 px-2 border-b border-gray-200"
-                      key={i}
-                    >
-                      {msg.author} : {msg.message}
+            <div>
+              <p className="font-bold text-white text-xl">
+                Tu nombre de usuario: {username}
+              </p>
+            </div>
+            <div className="flex gap-4">
+              <div className="flex flex-col justify-start bg-white w-56 min-h-[20rem] rounded-md shadow-md">
+                <div className="rounded-md overflow-hidden">
+                  <input
+                    type="text"
+                    placeholder="Nuevo chat..."
+                    value={newUser}
+                    className="outline-none py-2 px-2 rounded-bl-md flex-1 w-fit"
+                    onChange={(e) => setNewUser(e.target.value)}
+                    onKeyUp={handleNewUser}
+                  />
+                </div>
+                {userList
+                  .filter((user) => user.username !== username)
+                  .map(({ notification, username }, i) => (
+                    <div key={i} className="py-1 px-2 border-b border-gray-200">
+                      <div
+                        className="flex justify-between items-center cursor-pointer"
+                        onClick={() => {
+                          setUserSelected(username);
+                          // alert(username);
+                        }}
+                      >
+                        <div className="flex items-center">
+                          <p>{username}</p>
+                        </div>
+                        {notification > 0 && (
+                          <div className="bg-red-500 rounded-full px-2 text-white">
+                            {notification}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  );
-                })}
+                  ))}
               </div>
-              <div className="border-t border-gray-300 w-full flex rounded-bl-md">
-                <input
-                  type="text"
-                  placeholder="Nuevo mensaje..."
-                  value={message}
-                  className="outline-none py-2 px-2 rounded-bl-md flex-1"
-                  onChange={(e) => setMessage(e.target.value)}
-                  onKeyUp={handleKeypress}
-                />
-                <div className="border-l border-gray-300 flex justify-center items-center  rounded-br-md group hover:bg-purple-500 transition-all">
-                  <button
-                    className="group-hover:text-white px-3 h-full"
-                    onClick={() => {
-                      sendMessage();
-                    }}
-                  >
-                    Enviar
-                  </button>
+              <div>
+                <div className="flex flex-col justify-end bg-white h-[20rem] w-96 rounded-md shadow-md ">
+                  <div className="h-full last:border-b-0 overflow-y-scroll">
+                    {userSelected &&
+                      messages
+                        .filter(
+                          ({ author, recipient }) =>
+                            (author?.toLowerCase() === username.toLowerCase() &&
+                              recipient?.toLowerCase() ===
+                                userSelected.toLowerCase()) ||
+                            (author?.toLowerCase() ===
+                              userSelected.toLowerCase() &&
+                              recipient?.toLowerCase() ===
+                                username.toLowerCase())
+                        )
+                        .map((msg, i) => {
+                          return (
+                            <div
+                              className="w-full py-1 px-2 border-b border-gray-200"
+                              key={i}
+                            >
+                              {msg.author.toLowerCase() ===
+                              username.toLowerCase()
+                                ? "YO"
+                                : msg.author}{" "}
+                              : {msg.message}
+                            </div>
+                          );
+                        })}
+                  </div>
+                  {userSelected && (
+                    <div className="border-t border-gray-300 w-96 flex rounded-bl-md">
+                      <input
+                        type="text"
+                        placeholder="Nuevo mensaje..."
+                        value={message}
+                        className="outline-none py-2 px-2 rounded-bl-md flex-1"
+                        onChange={(e) => setMessage(e.target.value)}
+                        onKeyUp={handleKeypress}
+                      />
+                      <div className="border-l border-gray-300 flex justify-center items-center  rounded-br-md group hover:bg-purple-500 transition-all">
+                        <button
+                          className="group-hover:text-white px-3 h-full"
+                          onClick={() => {
+                            sendMessage();
+                          }}
+                        >
+                          Enviar
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
