@@ -39,6 +39,8 @@ export default function Home() {
       { author: chosenUsername, message },
     ]);
     setMessage("");
+
+    localStorage.setItem("messages", JSON.stringify(messages));
   };
 
   const handleKeypress = (e) => {
@@ -49,6 +51,28 @@ export default function Home() {
       }
     }
   };
+
+  useEffect(() => {
+    const storedUsername = localStorage.getItem("username");
+    const storedMessages = localStorage.getItem("messages");
+
+    if (storedUsername) {
+      setChosenUsername(storedUsername);
+      setUsername(storedUsername);
+    }
+
+    if (storedMessages) {
+      setMessages(JSON.parse(storedMessages));
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("username", chosenUsername);
+  }, [chosenUsername]);
+
+  useEffect(() => {
+    localStorage.setItem("messages", JSON.stringify(messages));
+  }, [messages]);
 
   return (
     <div className="flex items-center p-4 mx-auto min-h-screen justify-center bg-cyan-500">
