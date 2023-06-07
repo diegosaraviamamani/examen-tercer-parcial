@@ -28,6 +28,16 @@ export default function Home() {
     socket = io();
 
     socket.on("newIncomingMessage", (msg) => {
+      if (msg.recipient.toLowerCase() === username.toLowerCase()) {
+        setUserList((currentList) => {
+          const userIndex = currentList.findIndex(
+            (user) => user.username.toLowerCase() === msg.author.toLowerCase()
+          );
+          const newUserList = [...currentList];
+          newUserList[userIndex].notification += 1;
+          return newUserList;
+        });
+      }
       setMessages((currentMsg) => [
         ...currentMsg,
         { author: msg.author, message: msg.message, recipient: msg.recipient },
@@ -64,12 +74,12 @@ export default function Home() {
     // cuando se presiona ENTER
     if (e.keyCode === 13) {
       if (
-        !userList.find(
+        !userList?.find(
           (user) => user.username.toLowerCase() === newUser.toLowerCase()
         )
       ) {
         setUserList((currentList) => [
-          ...currentList,
+          ...(currentList ?? []),
           { username: newUser, notification: 0 },
         ]);
 
@@ -137,10 +147,22 @@ export default function Home() {
           </>
         ) : (
           <>
-            <div>
+            <div className="flex w-full max-w-[39rem] justify-between items-center">
               <p className="font-bold text-white text-xl">
                 Tu nombre de usuario: {username}
               </p>
+              <button
+                onClick={() => {
+                  setChosenUsername("");
+                  setUsername("");
+                  localStorage.removeItem("username");
+                  localStorage.removeItem("messages");
+                  localStorage.removeItem("userList");
+                }}
+                className="bg-white rounded-md px-4 py-2 "
+              >
+                SALIR
+              </button>
             </div>
             <div className="flex gap-4">
               <div className="flex flex-col justify-start bg-white w-56 min-h-[20rem] rounded-md shadow-md">
@@ -155,14 +177,21 @@ export default function Home() {
                   />
                 </div>
                 {userList
-                  .filter((user) => user.username !== username)
+                  ?.filter(
+                    (user) =>
+                      user.username.toLowerCase() !== username.toLowerCase()
+                  )
                   .map(({ notification, username }, i) => (
                     <div key={i} className="py-1 px-2 border-b border-gray-200">
                       <div
                         className="flex justify-between items-center cursor-pointer"
                         onClick={() => {
                           setUserSelected(username);
-                          // alert(username);
+                          setUserList((currentList) => {
+                            const newList = [...currentList];
+                            newList[i].notification = 0;
+                            return newList;
+                          });
                         }}
                       >
                         <div className="flex items-center">
@@ -225,6 +254,29 @@ export default function Home() {
                           }}
                         >
                           Enviar
+                        </button>
+                      </div>
+                      <div className="border-l border-gray-300 flex justify-center items-center  rounded-br-md group hover:bg-purple-500 transition-all">
+                        <button
+                          // warning styles
+                          className="group-hover:text-white px-3 h-full text-red-500"
+                          onClick={() => {
+                            {
+                              /* clean messages for current userSelected */
+                            }
+                            setMessages((currentMessages) => {
+                              const newMessages = currentMessages.filter(
+                                ({ author, recipient }) =>
+                                  author.toLowerCase() !==
+                                    userSelected.toLowerCase() &&
+                                  recipient.toLowerCase() !==
+                                    userSelected.toLowerCase()
+                              );
+                              return newMessages;
+                            });
+                          }}
+                        >
+                          Limpiar
                         </button>
                       </div>
                     </div>
